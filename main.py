@@ -23,6 +23,26 @@ EXPECTED_LEN = 57
 EXPECTED_SHA256 = "d6015e46b62767f7f0c54ea8287fa64d54dc8e839855afb5a629363c48d7ab8c"
 
 
+def verify(path, data) -> bool:
+    """Read the written file back and confirm it is byte-identical."""
+    try:
+        with open(path, "rb") as f:
+            written = f.read()
+    except OSError as exc:
+        print(f"read-back failed: {exc}", file=sys.stderr)
+        return False
+    if written != data:
+        print("read-back mismatch: file bytes differ from payload", file=sys.stderr)
+        return False
+    if len(written) != EXPECTED_LEN:
+        print(f"read-back bad length: {len(written)} != {EXPECTED_LEN}", file=sys.stderr)
+        return False
+    if hashlib.sha256(written).hexdigest() != EXPECTED_SHA256:
+        print("read-back bad sha256", file=sys.stderr)
+        return False
+    return True
+
+
 def main() -> int:
     payload = TAGLINE.encode("utf-8")
     if len(payload) != EXPECTED_LEN:
@@ -36,8 +56,12 @@ def main() -> int:
         return 1
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "entry.txt"), "wb") as f:
+    out_path = os.path.join(out_dir, "entry.txt")
+    with open(out_path, "wb") as f:
         f.write(payload)
+    verified = verify(out_path, payload)
+    if not verified:
+        return 1
     return 0
 
 
